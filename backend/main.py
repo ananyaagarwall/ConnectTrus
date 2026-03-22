@@ -22,9 +22,16 @@ INPUT_COLS_PATH = os.path.join(BASE_DIR, "input_cols.joblib")
 
 # --- App Setup ---
 app = FastAPI(title=APP_TITLE)
+allowed_origins = [
+    origin.strip() for origin in os.getenv(
+        "BACKEND_CORS_ORIGINS",
+        "http://localhost:5173,http://localhost:3000"
+    ).split(",") if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^http://localhost:\d+$",
     allow_credentials=True, # Need credentials for auth headers
     allow_methods=["*"],
     allow_headers=["*"],
