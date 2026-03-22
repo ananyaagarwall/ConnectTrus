@@ -158,7 +158,8 @@ const CSS = `
   .btn-primary:disabled { opacity: 0.7; transform: none; }
 
   /* ── Shell ──────────────────────────────────────── */
-  .shell { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+  .shell { width: 100%; max-width: 1560px; margin: 0 auto; padding: 40px 32px; }
+  @media (min-width: 1280px) { .shell { max-width: 1680px; padding: 48px 40px; } }
   .topbar {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 28px; padding: 14px 24px;

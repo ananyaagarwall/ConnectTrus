@@ -4,9 +4,13 @@ from typing import Any, Dict, Optional, List
 import joblib
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import jwt
+import json
+from sqlalchemy.orm import Session
+from database import get_db, CommunityGrowth
 
 # --- Constants & Paths ---
 APP_TITLE = "CONNECTRUST ML API"
@@ -21,10 +25,22 @@ app = FastAPI(title=APP_TITLE)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True, # Need credentials for auth headers
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- Clerk Auth Dependency ---
+def get_current_user(authorization: str = Header(None)) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        return payload.get('sub')
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid auth token")
+
 
 # --- Pydantic Schema ---
 # Matches the 16 features from the Colab notebook
@@ -229,10 +245,35 @@ def health_check():
     }
 
 @app.post("/api/analyze")
-def analyze(payload: AnalyzeIn):
+def analyze(
+    payload: AnalyzeIn, 
+    clerk_user_id: str = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
     # Convert Pydantic model to dict, using aliases for keys with spaces
     data = payload.model_dump(by_alias=True)
     result = HUB.predict(data)
+
+    # Store in database
+    db_record = CommunityGrowth(
+        clerk_user_id=clerk_user_id,
+        members=payload.members,
+        active_members=payload.active_members,
+        events_per_month=payload.events_per_month,
+        community_age_months=payload.community_age_months,
+        engagement_rate=payload.engagement_rate,
+        location_type=payload.location_type,
+        domain=payload.domain,
+        mode=payload.mode,
+        target_demographic=payload.target_demographic,
+        social_platforms=payload.Social_Platforms,
+        health_score=result.get("health", 0.0),
+        stage=result.get("stage", "Stable"),
+        recommendation=result
+    )
+    db.add(db_record)
+    db.commit()
+
     return {"result": result, "source": "model" if HUB.classifier else "heuristic"}
 
 if __name__ == "__main__":
