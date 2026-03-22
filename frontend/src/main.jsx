@@ -5,7 +5,13 @@ import App from './App.jsx'
 
 import { ClerkProvider } from '@clerk/clerk-react'
 
-const PUBLISHABLE_KEY = "pk_test_Z2FtZS1qYWNrYWwtNjEuY2xlcmsuYWNjb3VudHMuZGV2JA"
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error(
+    'Missing VITE_CLERK_PUBLISHABLE_KEY. Add it to frontend/.env before running.'
+  )
+}
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

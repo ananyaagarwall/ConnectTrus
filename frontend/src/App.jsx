@@ -1,11 +1,18 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable no-unused-vars */
-import { useState, useRef, useEffect, useCallback } from "react";
-import { SignIn, SignedIn, SignedOut, useAuth, UserButton } from "@clerk/clerk-react";
+import { useState, useRef, useEffect } from "react";
+import { SignIn, SignedIn, SignedOut, UserButton, useAuth } from "@clerk/clerk-react";
 
-// —— Dropdown Options (from modal)
+// --- Dropdown Options ------------------------------------------
 const OPTS = {
   location_type: ["Urban", "Semi-Urban", "Rural"],
   domain: ["Academic", "Cultural", "NGO", "Professional Network", "Startup", "Student Club", "Health & Wellness", "Arts & Creative", "Sports & Fitness", "Technology"],
+  mode: ["Hybrid", "Online", "Offline"],
+  target_demographic: ["Youth", "Students", "Professionals", "Mixed", "Senior", "Women", "Parents"],
+  motive_category: ["Networking", "Skill Building", "Awareness", "Advocacy", "Fundraising", "Social Support", "Entertainment", "Learning", "Career Growth"],
+  has_formal_leadership: [{ label: "Yes", value: 1 }, { label: "No", value: 0 }],
+  Social_Platforms: ["WhatsApp Groups", "Facebook Groups", "Instagram", "LinkedIn Ads", "Twitter/X Threads", "Discord Partnering", "Telegram Shouts", "Email Newsletter", "YouTube", "SMS Campaign", "SEO/Blog", "Cold Outreach", "Reddit Communities", "TikTok", "Podcast Channels", "Others"],
+  Physical_Platforms: ["Local Meetups", "Campus Ambassadors", "Offline Banners", "Pamphlets", "Billboards", "Word of Mouth", "Flyers & Posters", "Community Boards", "Physical Events", "Pop-up Stalls", "Radio/TV Ads", "Others"],
 };
 
 const COMM_TYPES = ["Tech", "Sustainable", "Empowerment", "Connection", "Growth", "Cultural", "Health", "Creative", "Sports", "Academic", "Social Impact", "Professional"];
@@ -25,40 +32,96 @@ const COMM_LABELS_BY_TYPE = {
   Professional: ["Dev Connect", "Startup SaaS", "Freelance Lab", "Real Estate", "HR Network", "Finance Circle", "Legal Eagles", "Marketing Pros"],
 };
 
-const FONT = `@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');`;
+const REAL_LIFE_SOLUTIONS = {
+  Tech: [
+    { title: "Host a Hackathon Weekend", desc: "A 48-hour hackathon focusing on a real community problem. Even small events see 3x member re-engagement.", icon: "??" },
+    { title: "Launch a 'Build in Public' Series", desc: "Members share weekly progress on personal projects. Drives consistency and peer accountability.", icon: "??" },
+    { title: "Mentorship Pairing Programme", desc: "Match seniors with juniors for 30-day sprints. Proven to increase retention by 40%.", icon: "??" },
+  ],
+  Sustainable: [
+    { title: "Monthly Neighbourhood Clean-Up", desc: "Visible offline action builds trust and local press coverage.", icon: "??" },
+    { title: "Zero-Waste Challenge", desc: "A 30-day shared challenge tracked publicly online drives daily engagement.", icon: "??" },
+    { title: "Partner with Local Businesses", desc: "Eco-friendly brand tie-ins provide resources while expanding your audience.", icon: "??" },
+  ],
+  Empowerment: [
+    { title: "Speaker Series: Real Stories", desc: "Monthly live talks by members who overcame challenges. Builds emotional community glue.", icon: "??" },
+    { title: "Skill Certification Bootcamp", desc: "A structured 4-week programme with certificates. Increases perceived value and commitment.", icon: "??" },
+    { title: "Peer Mentoring Circles", desc: "Small groups of 5 meet bi-weekly for accountability and support.", icon: "??" },
+  ],
+  Connection: [
+    { title: "Monthly In-Person Mixer", desc: "Simple low-cost meetups consistently outperform online events for turning followers into friends.", icon: "??" },
+    { title: "'Coffee Roulette' Pairing", desc: "Randomly pair members for a virtual coffee each week. Scalable and high-impact.", icon: "?" },
+    { title: "Community Challenge (Monthly Theme)", desc: "Give members a shared theme to create around—books, art, recipes. Viral-friendly.", icon: "??" },
+  ],
+  Growth: [
+    { title: "Referral Reward System", desc: "Each member who brings in 3 new people gets a badge or perk. A classic that works.", icon: "??" },
+    { title: "Collaborative Launch Day", desc: "Members help each other launch projects simultaneously, creating mutual amplification.", icon: "??" },
+    { title: "Newsletter Swap with a Peer Community", desc: "Cross-promote with a similar community to grow your audience instantly.", icon: "??" },
+  ],
+  default: [
+    { title: "Run a Member Spotlight Series", desc: "Feature one member per week. Boosts belonging and gives long-time members visibility.", icon: "?" },
+    { title: "Set a Public 90-Day Goal", desc: "Rally your community around a single measurable goal. Creates urgency and focus.", icon: "??" },
+    { title: "Host a 'State of the Community' Call", desc: "Transparent communication about growth, struggles and plans builds deep loyalty.", icon: "??" },
+  ],
+};
 
+const VOLUNTEER_STRATEGIES = {
+  Tech: {
+    how: "Focus on skill acquisition and portfolio building. Developers want to solve 'real' problems they can showcase on GitHub.",
+    where: ["GitHub Discussions", "Dev.to Communities", "University CS Labs", "Discord Tech Hubs", "StackOverflow Local Chapters"],
+    target: "Computing students, junior devs seeking experience, and senior devs looking for social impact projects."
+  },
+  Sustainable: {
+    how: "Focus on direct local impact and tangible results. People are motivated by seeing their neighbourhood change or a forest grow.",
+    where: ["Local Farmer Markets", "University Eco-Clubs", "Instagram Environmentalists", "Nextdoor Neighborhood groups", "Vegan Meetups"],
+    target: "Climate-conscious youth, local residents, biology students, and zero-waste advocates."
+  },
+  Empowerment: {
+    how: "Focus on empathy, story-telling, and long-term mentorship. Emphasise the 'ripple effect' of their help.",
+    where: ["Community Centers", "NGO Networks", "LinkedIn Social-Impact groups", "Local Libraries", "Psychology Student Associations"],
+    target: "Social work students, retired professionals, advocates for social justice, and empathetic listeners."
+  },
+  Connection: {
+    how: "Focus on the joy of sharing a hobby and making new friends. Keep the barrier to entry low and fun.",
+    where: ["Meetup.com", "Reddit Hobby-Subs", "Facebook Interest Groups", "Local Cafes", "Co-working spaces"],
+    target: "Expats, young professionals, hobbyists, and those seeking sense of belonging."
+  },
+  default: {
+    how: "Focus on clear tasks, regular appreciation, and a sense of shared mission.",
+    where: ["General Volunteer Portals", "Social Media Campaigns", "Local Community Boards", "Word of Mouth"],
+    target: "Passionate individuals looking for meaningful ways to spend their free time."
+  }
+};
+
+const CONSULTANTS = [
+  { name: "Sarah Jenkins", role: "Scalability Expert", rating: 4.9, bio: "Helped grow 50+ startup communities from 0 to 10k members.", img: "?????" },
+  { name: "Marcus Chen", role: "Retention Specialist", rating: 4.8, bio: "Obsessed with churn rates. Expert in building community 'stickiness'.", img: "?????" },
+  { name: "Dr. Elena Rossi", role: "Community Psychologist", rating: 5.0, bio: "Expert in deep engagement and emotional safety in digital spaces.", img: "?????" },
+  { name: "David Kim", role: "Offline Events Guru", rating: 4.7, bio: "Specialist in hybrid communities and large-scale physical events.", img: "?????" }
+];
+
+// --- Styling --------------------------------------------------
 const CSS = `
-  ${FONT}
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono&display=swap');
-
   :root {
-    --bg: #f8fafc;
-    --accent: #3b82f6;
-    --accent-glow: rgba(59,130,246,0.1);
-    --violet: #8b5cf6;
+    --bg: #f0f4ff;
+    --accent: #4f46e5;
+    --accent2: #7c3aed;
     --green: #10b981;
+    --red: #ef4444;
+    --amber: #f59e0b;
     --text: #0f172a;
     --text-muted: #64748b;
     --border: #e2e8f0;
-    --card-bg: #ffffff;
-    --radius-lg: 24px;
-    --radius: 16px;
+    --card: #ffffff;
     --font: 'Outfit', sans-serif;
+    --r: 18px;
+    --r-sm: 12px;
   }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  body {
-    font-family: var(--font);
-    background: var(--bg);
-    color: var(--text);
-    background-image: 
-      radial-gradient(at 0% 0%, hsla(210,100%,98%,1) 0, transparent 50%),
-      radial-gradient(at 100% 0%, hsla(230,100%,97%,1) 0, transparent 50%);
-    min-height: 100vh;
-  }
-
-  /* Modal Overlay */
+  /* -- Modal Overlay ------------------------------- */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(15,23,42,0.7); backdrop-filter: blur(6px);
     z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px;
@@ -74,13 +137,21 @@ const CSS = `
   .modal-subtitle { margin-top: 8px; color: var(--text-muted); font-size: 14px; font-weight: 500; }
   .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   @media (max-width: 600px) { .modal-grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 7px; }
+  .field label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .field input, .field select {
+    padding: 12px 16px; border-radius: 12px; border: 2px solid #f1f5f9;
+    background: #f8fafc; font-family: var(--font); font-size: 15px; font-weight: 600;
+    outline: none; transition: all 0.2s; color: var(--text);
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); background: white; box-shadow: 0 0 0 4px rgba(79,70,229,0.08); }
   .field-full { grid-column: 1 / -1; }
   .range-wrap { display: flex; align-items: center; gap: 12px; }
   .range-wrap input[type=range] { flex: 1; accent-color: var(--accent); }
-  .range-val { background: linear-gradient(135deg, var(--accent), var(--violet)); color: white; font-size: 13px; font-weight: 800; padding: 4px 12px; border-radius: 999px; min-width: 50px; text-align: center; }
+  .range-val { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; font-size: 13px; font-weight: 800; padding: 4px 12px; border-radius: 999px; min-width: 50px; text-align: center; }
   .modal-section-title { grid-column: 1 / -1; font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; border-bottom: 2px solid #ede9fe; padding-bottom: 8px; margin-top: 8px; }
   .btn-primary {
-    margin-top: 32px; background: linear-gradient(135deg, var(--accent), var(--violet));
+    margin-top: 32px; background: linear-gradient(135deg, var(--accent), var(--accent2));
     color: white; border: none; padding: 18px; border-radius: 14px; font-weight: 800;
     font-size: 16px; cursor: pointer; width: 100%; letter-spacing: 0.5px;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -88,217 +159,280 @@ const CSS = `
   .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(79,70,229,0.35); }
   .btn-primary:disabled { opacity: 0.7; transform: none; }
 
-  .shell { width: 100%; max-width: 1560px; margin: 0 auto; padding: 44px 32px; }
-  @media (min-width: 1280px) { .shell { max-width: 1680px; padding: 52px 40px; } }
+  /* -- Shell ---------------------------------------- */
 
+  /* -- Tab Switcher -------------------------------- */
+  .main-tabs { display: flex; gap: 8px; margin-bottom: 28px; padding: 6px; background: #e2e8f0; border-radius: 16px; width: fit-content; }
+  .tab-btn { padding: 10px 24px; border-radius: 12px; font-weight: 800; font-size: 14px; border: none; cursor: pointer; color: var(--text-muted); transition: all 0.3s; background: transparent; display: flex; align-items: center; gap: 8px; }
+  .tab-btn.active { background: white; color: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+  /* -- Stage Hero ------------------------------------ */
+  .hero-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+  .hero-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 28px; }
+  .hero-label { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  
+  /* Status */
+  .status-badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 999px; font-weight: 800; font-size: 17px; margin-bottom: 12px; }
+  .status-desc { font-size: 13px; color: var(--text-muted); font-weight: 500; line-height: 1.5; }
+
+  /* Gauge */
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .gauge-score { font-size: 42px; font-weight: 800; }
+  .gauge-label { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+
+  /* Reality Check */
+  .reality-card { background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%); border: 1px solid #c7d2fe; border-radius: var(--r); padding: 28px; margin-bottom: 28px; }
+  .reality-eyebrow { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .reality-text { font-size: 18px; font-weight: 700; line-height: 1.5; color: var(--text); }
+  .reality-comparison { margin-top: 16px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .compare-chip { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.7); border: 1px solid rgba(79,70,229,0.2); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 700; }
+
+  /* Advice Grid */
+  .advice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+  @media (max-width: 700px) { .advice-grid { grid-template-columns: 1fr; } }
+  .advice-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 28px; }
+  .advice-eye { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+  .focus-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 999px; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+  .advice-text { font-size: 15px; font-weight: 600; line-height: 1.6; color: var(--text); }
+  .advice-reason { margin-top: 10px; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* Solutions */
+  .solutions-section { margin-bottom: 28px; }
+  .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .solutions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 800px) { .solutions-grid { grid-template-columns: 1fr; } }
+  .solution-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 24px; position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+  .solution-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
+  .sol-icon { font-size: 32px; margin-bottom: 14px; }
+  .sol-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .sol-desc { font-size: 13px; font-weight: 500; color: var(--text-muted); line-height: 1.6; }
+  .sol-accent { position: absolute; top: 0; right: 0; width: 80px; height: 80px; background: linear-gradient(135deg, rgba(79,70,229,0.06), rgba(124,58,237,0.04)); border-radius: 0 18px 0 80px; }
+
+  /* Volunteer Content */
+  .volunteer-info { display: flex; flex-direction: column; gap: 24px; }
+  .vol-how-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 28px; }
+  .vol-where-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
+  .vol-chip { background: #f1f5f9; padding: 12px 18px; border-radius: 12px; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; color: var(--accent); }
+  .ecosphere-promo { 
+    background: linear-gradient(135deg, #10b981, #3b82f6); color: white; border-radius: var(--r); padding: 40px; 
+    text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 32px; 
+    box-shadow: 0 20px 40px rgba(16,185,129,0.25);
+  }
+  .btn-eco { background: white; color: #10b981; border: none; padding: 16px 32px; border-radius: 999px; font-weight: 800; font-size: 16px; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+  .btn-eco:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+
+  /* Consultant Content */
+  .consultant-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+  .con-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 24px; text-align: center; }
+  .con-img { font-size: 48px; margin-bottom: 16px; }
+  .con-name { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .con-role { font-size: 12px; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 12px; }
+  .con-bio { font-size: 14px; font-weight: 500; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px; }
+  .btn-con { background: #f1f5f9; border: none; padding: 12px 24px; border-radius: 999px; font-weight: 800; font-size: 13px; cursor: pointer; width: 100%; transition: all 0.2s; }
+  .btn-con:hover { background: var(--accent); color: white; }
+
+  /* Stat Strip */
+  .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+  @media (max-width: 700px) { .stat-strip { grid-template-columns: 1fr 1fr; } }
+  .stat-pill { background: white; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 18px 20px; }
+  .stat-pill-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-pill-val { font-size: 24px; font-weight: 800; }
+  .stat-pill-bar { height: 4px; background: #f1f5f9; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+  .stat-pill-bar-fill { height: 100%; border-radius: 4px; transition: width 1s; }
   .topbar {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 32px; padding: 12px 24px;
-    background: rgba(255,255,255,0.8); backdrop-filter: blur(12px);
+    margin-bottom: 28px; padding: 14px 24px;
+    background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
     border: 1px solid var(--border); border-radius: 999px;
   }
   .brand { display: flex; align-items: center; gap: 10px; }
-  .brand-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), var(--violet)); border-radius: 10px; display: grid; place-items: center; color: white; }
-  .brand-name { font-weight: 800; font-size: 19px; }
-  .config-btn {
-    background: #f1f5f9; border: none; padding: 8px 14px; border-radius: 999px;
-    font-size: 12px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+  .brand-icon { width: 34px; height: 34px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 10px; display: grid; place-items: center; color: white; font-size: 16px; }
+  .brand-name { font-weight: 800; font-size: 18px; }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .live-dot { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--green); }
+  .live-dot::before { content: ''; width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(1.3)} }
+  .btn-reconfigure { background: #f1f5f9; border: none; padding: 8px 16px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--text-muted); transition: all 0.2s; }
+  .btn-reconfigure:hover { background: #e0e7ff; color: var(--accent); }
+
+  /* -- Tab Switcher -------------------------------- */
+  .main-tabs { display: flex; gap: 8px; margin-bottom: 28px; padding: 6px; background: #e2e8f0; border-radius: 16px; width: fit-content; }
+  .tab-btn { padding: 10px 24px; border-radius: 12px; font-weight: 800; font-size: 14px; border: none; cursor: pointer; color: var(--text-muted); transition: all 0.3s; background: transparent; display: flex; align-items: center; gap: 8px; }
+  .tab-btn.active { background: white; color: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+  /* -- Stage Hero ------------------------------------ */
+  .hero-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+  .hero-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 28px; }
+  .hero-label { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  
+  /* Status */
+  .status-badge { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; border-radius: 999px; font-weight: 800; font-size: 17px; margin-bottom: 12px; }
+  .status-desc { font-size: 13px; color: var(--text-muted); font-weight: 500; line-height: 1.5; }
+
+  /* Gauge */
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .gauge-score { font-size: 42px; font-weight: 800; }
+  .gauge-label { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+
+  /* Reality Check */
+  .reality-card { background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%); border: 1px solid #c7d2fe; border-radius: var(--r); padding: 28px; margin-bottom: 28px; }
+  .reality-eyebrow { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .reality-text { font-size: 18px; font-weight: 700; line-height: 1.5; color: var(--text); }
+  .reality-comparison { margin-top: 16px; display: flex; gap: 16px; flex-wrap: wrap; }
+  .compare-chip { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.7); border: 1px solid rgba(79,70,229,0.2); border-radius: 999px; padding: 6px 14px; font-size: 12px; font-weight: 700; }
+
+  /* Advice Grid */
+  .advice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 28px; }
+  @media (max-width: 700px) { .advice-grid { grid-template-columns: 1fr; } }
+  .advice-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 28px; }
+  .advice-eye { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+  .focus-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 999px; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+  .advice-text { font-size: 15px; font-weight: 600; line-height: 1.6; color: var(--text); }
+  .advice-reason { margin-top: 10px; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+  /* Solutions */
+  .solutions-section { margin-bottom: 28px; }
+  .section-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+  .solutions-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 800px) { .solutions-grid { grid-template-columns: 1fr; } }
+  .solution-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 24px; position: relative; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; }
+  .solution-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,0.08); }
+  .sol-icon { font-size: 32px; margin-bottom: 14px; }
+  .sol-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .sol-desc { font-size: 13px; font-weight: 500; color: var(--text-muted); line-height: 1.6; }
+  .sol-accent { position: absolute; top: 0; right: 0; width: 80px; height: 80px; background: linear-gradient(135deg, rgba(79,70,229,0.06), rgba(124,58,237,0.04)); border-radius: 0 18px 0 80px; }
+
+  /* Volunteer Content */
+  .volunteer-info { display: flex; flex-direction: column; gap: 24px; }
+  .vol-how-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 28px; }
+  .vol-where-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
+  .vol-chip { background: #f1f5f9; padding: 12px 18px; border-radius: 12px; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; color: var(--accent); }
+  .ecosphere-promo { 
+    background: linear-gradient(135deg, #10b981, #3b82f6); color: white; border-radius: var(--r); padding: 40px; 
+    text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 32px; 
+    box-shadow: 0 20px 40px rgba(16,185,129,0.25);
   }
-  .config-btn:hover { background: #e2e8f0; color: var(--accent); }
+  .btn-eco { background: white; color: #10b981; border: none; padding: 16px 32px; border-radius: 999px; font-weight: 800; font-size: 16px; cursor: pointer; text-decoration: none; transition: all 0.2s; }
+  .btn-eco:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
 
-  .main-nav { display: flex; gap: 8px; margin-bottom: 32px; padding: 6px; background: #f1f5f9; border-radius: 16px; width: fit-content; }
-  .nav-btn { padding: 10px 24px; border-radius: 12px; font-weight: 700; font-size: 14px; border: none; cursor: pointer; color: var(--text-muted); transition: all 0.3s; background: transparent; display: flex; align-items: center; gap: 8px; }
-  .nav-btn.active { background: white; color: var(--accent); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+  /* Consultant Content */
+  .consultant-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+  .con-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 24px; text-align: center; }
+  .con-img { font-size: 48px; margin-bottom: 16px; }
+  .con-name { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .con-role { font-size: 12px; font-weight: 800; color: var(--accent); text-transform: uppercase; margin-bottom: 12px; }
+  .con-bio { font-size: 14px; font-weight: 500; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px; }
+  .btn-con { background: #f1f5f9; border: none; padding: 12px 24px; border-radius: 999px; font-weight: 800; font-size: 13px; cursor: pointer; width: 100%; transition: all 0.2s; }
+  .btn-con:hover { background: var(--accent); color: white; }
 
-  .main { display: flex; flex-direction: column; gap: 32px; animation: fadeIn 0.5s ease-out; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  /* Stat Strip */
+  .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+  @media (max-width: 700px) { .stat-strip { grid-template-columns: 1fr 1fr; } }
+  .stat-pill { background: white; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 18px 20px; }
+  .stat-pill-lbl { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-pill-val { font-size: 24px; font-weight: 800; }
+  .stat-pill-bar { height: 4px; background: #f1f5f9; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+  .stat-pill-bar-fill { height: 100%; border-radius: 4px; transition: width 1s; }
 
-  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
-  .stat-card { background: white; border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 8px; }
-  .stat-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-  .stat-val { font-size: 32px; font-weight: 800; color: var(--accent); }
-  .stat-bar { height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
-  .stat-bar-fill { height: 100%; transition: width 1s; }
+  .dashboard { animation: fadeUp 0.5s ease-out; }
 
-  .card { background: white; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; height: 100%; display: flex; flex-direction: column; }
-  .card-head { padding: 20px 24px; border-bottom: 1px solid var(--border); font-weight: 800; color: var(--text-muted); font-size: 12px; letter-spacing: 1px; }
-  .card-body { padding: 24px; flex: 1; }
+  /* Advisor Page */
+  .advisor-hero {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    border-radius: var(--r); padding: 60px 40px; color: white; margin-bottom: 28px;
+    text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+  }
+  .advisor-badge { display: inline-block; padding: 6px 14px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 999px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
+  .advisor-title { font-size: 42px; font-weight: 800; margin-bottom: 16px; background: linear-gradient(to right, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .advisor-subtitle { font-size: 18px; color: #94a3b8; max-width: 700px; margin: 0 auto 32px; line-height: 1.6; }
+  .btn-launch { background: white; color: var(--accent); border: none; padding: 16px 32px; border-radius: 999px; font-weight: 800; font-size: 16px; cursor: pointer; transition: all 0.2s; }
+  .btn-launch:hover { transform: scale(1.05); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
 
-  .input-tabs { display: flex; gap: 4px; padding: 6px; background: #f1f5f9; border-radius: 12px; margin-bottom: 32px; width: fit-content; }
-  .tab { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 700; border: none; cursor: pointer; color: var(--text-muted); transition: all 0.2s; background: transparent; }
-  .tab.active { background: white; color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-
-  .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 32px; }
-  .field { display: flex; flex-direction: column; gap: 8px; }
-  .field label { font-size: 12px; font-weight: 700; color: var(--text-muted); }
-  input, select { padding: 14px 18px; border-radius: 14px; border: 2px solid #f1f5f9; background: #f1f5f9; font-family: inherit; font-size: 15px; font-weight: 600; outline: none; }
-  input:focus { border-color: var(--accent); background: white; }
-
-  .btn-analyze { margin-top: 32px; background: linear-gradient(135deg, var(--accent), var(--violet)); color: white; border: none; padding: 20px; border-radius: 16px; font-weight: 800; font-size: 15px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
-
-  .rec-box { background: #f8fafc; border-radius: 20px; padding: 32px; border: 1px solid var(--border); }
-  .rec-tag { display: inline-block; padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 800; margin-bottom: 16px; }
-
-  /* Visualization Grid */
-  .viz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 8px; }
-  @media (max-width: 1000px) { .viz-grid { grid-template-columns: 1fr; } }
-  .large-viz { grid-column: 1 / -1; min-height: 450px; }
-
-  /* Chat Terminal */
-  .strategist-view { display: flex; flex-direction: column; height: 75vh; background: white; border-radius: var(--radius-lg); border: 1px solid var(--border); overflow: hidden; }
-  .chat-msgs { flex: 1; overflow-y: auto; padding: 32px; display: flex; flex-direction: column; gap: 24px; background: #fafafa; }
-  .msg-bub { padding: 20px 24px; border-radius: 24px; font-size: 15px; font-weight: 500; line-height: 1.6; max-width: 80%; }
-  .msg.bot .msg-bub { background: white; border: 1px solid var(--border); color: #334155; align-self: flex-start; border-bottom-left-radius: 4px; }
-  .msg.user .msg-bub { background: var(--accent); color: white; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 10px 15px -3px rgba(59,130,246,0.3); }
-  .chat-inp-row { padding: 24px 32px; border-top: 1px solid var(--border); display: flex; gap: 16px; background: white; }
-  .btn-send { width: 56px; height: 56px; border-radius: 16px; background: var(--accent); color: white; border: none; cursor: pointer; display: grid; place-items: center; }
-
-  /* New Chart Mockups */
-  .growth-bar-container { display: flex; align-items: flex-end; gap: 12px; height: 280px; width: 100%; border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-top: 20px; position: relative; }
-  .bar-col { flex: 1; border-radius: 8px 8px 0 0; min-width: 40px; position: relative; transition: height 1s cubic-bezier(0.4, 0, 0.2, 1); }
-  .bar-col::after { content: attr(data-val); position: absolute; top: -28px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 800; color: var(--text-muted); opacity: 0; transition: opacity 0.3s; }
-  .bar-col:hover::after { opacity: 1; }
-  .pulse-canvas-wrap { height: 440px; width: 100%; position: relative; margin-top: 10px; }
-  .empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); font-size: 14px; opacity: 0.6; }
+  .advisor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  @media (max-width: 900px) { .advisor-grid { grid-template-columns: 1fr; } }
+  .adv-benefit-card { background: white; border: 1px solid var(--border); border-radius: var(--r); padding: 32px; transition: transform 0.3s; }
+  .adv-benefit-card:hover { transform: translateY(-5px); }
+  .adv-icon-wrap { width: 50px; height: 50px; background: #eff6ff; border-radius: 12px; display: grid; place-items: center; color: var(--accent); margin-bottom: 20px; }
+  .adv-benefit-title { font-size: 20px; font-weight: 800; margin-bottom: 12px; }
+  .adv-benefit-desc { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
 `;
 
-/* ─── helpers ──────────────────────────────────────────────── */
-function analyze({ size, active_users, events, engagement }) {
-  const ratio = size > 0 ? (active_users / size) * 100 : 0;
-  const health = Math.min(100, Math.max(0, Math.round(engagement * 0.6 + ratio * 0.4)));
-  if (size < 50) return { stage: "Early Stage", stageColor: "#f59e0b", cluster: "Emerging", confidence: 74, health, recommendation: "Host 3–4 events/month to build momentum.", reason: "Small communities need frequent touchpoints." };
-  if (events >= 3 && engagement > 60) return { stage: "Growing", stageColor: "#10d97b", cluster: "High Engagement", confidence: 87, health, recommendation: "Introduce mentorship tracks.", reason: "High-engagement needs conversion to advocates." };
-  return { stage: "Stable", stageColor: "#00d4ff", cluster: "Balanced Core", confidence: 81, health, recommendation: "Increase events to 5/month.", reason: "Consistent activation nudges are needed." };
+// --- Helpers ---------------------------------------------------
+function stageInfo(stage) {
+  const map = {
+    Stagnant: { color: "#ef4444", bg: "#fef2f2", emoji: "📉", desc: "Community is losing momentum. Immediate action needed to re-engage members." },
+    Early: { color: "#f59e0b", bg: "#fffbeb", emoji: "🌱", desc: "Early days — focus on building your core group and hosting consistent events." },
+    Stable: { color: "#3b82f6", bg: "#eff6ff", emoji: "⚓", desc: "Holding steady with a reliable base. Growth opportunities are ready to unlock." },
+    Growing: { color: "#10b981", bg: "#ecfdf5", emoji: "🚀", desc: "Strong momentum. Focus on scaling and converting members into advocates." },
+  };
+  return map[stage] || map.Stable;
 }
 
-function buildPulseData(formData, result) {
-  const { health } = result;
-  const months = ["Now","M2","M3","M4","M5","M6","M7","M8","M9","M10","M11","M12"];
-  const actual = [], improved = [];
-  for (let i = 0; i < 12; i++) {
-    const noise = (Math.random() - 0.5) * 5;
-    const base = Math.min(100, Math.max(10, health + (i * 1.5) + noise));
-    actual.push(Math.round(base));
-    improved.push(Math.round(Math.min(100, base + (i < 2 ? 0 : (i - 1) * 3))));
-  }
-  return { months, actual, improved };
+function getSolutions(commType) {
+  return REAL_LIFE_SOLUTIONS[commType] || REAL_LIFE_SOLUTIONS.default;
 }
 
-function radarPoints(data, cx, cy, r) {
-  const axes = [{ key: 'size_score', label: 'Size' }, { key: 'activity', label: 'Activity' }, { key: 'events_score', label: 'Events' }, { key: 'engagement', label: 'Engage' }, { key: 'health', label: 'Health' }, { key: 'confidence', label: 'Conf' }];
-  return axes.map((ax, i) => {
-    const angle = (Math.PI * 2 * i) / axes.length - Math.PI / 2;
-    const val = (data ? data[ax.key] : 0) / 100;
-    return { x: cx + r * val * Math.cos(angle), y: cy + r * val * Math.sin(angle), lx: cx + (r + 25) * Math.cos(angle), ly: cy + (r + 25) * Math.sin(angle), label: ax.label };
-  });
+function getVolunteerStrategy(commType) {
+  return VOLUNTEER_STRATEGIES[commType] || VOLUNTEER_STRATEGIES.default;
 }
 
-/* ─── components ────────────────────────────────────────────── */
-function Ico({ n, size = 14 }) {
-  const s = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
-  if (n === "pulse") return <svg {...s}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
-  if (n === "bot") return <svg {...s}><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>;
-  if (n === "star") return <svg {...s}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>;
-  if (n === "users") return <svg {...s}><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>;
-  if (n === "send") return <svg {...s}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
+// --- Icons ---------------------------------------------------
+function Ico({ n, size = 18 }) {
+  const s = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
+  if (n === "trend") return <svg {...s}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>;
+  if (n === "user-plus") return <svg {...s}><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="17" y1="11" x2="23" y2="11" /></svg>;
+  if (n === "briefcase") return <svg {...s}><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>;
+  if (n === "info") return <svg {...s}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
+  if (n === "zap") return <svg {...s}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
   return null;
 }
 
-function PulseTimeline({ data }) {
-  const canvasRef = useRef(null);
-  useEffect(() => {
-    if (!data || !canvasRef.current) return;
-    const canvas = canvasRef.current, ctx = canvas.getContext('2d'), dpr = window.devicePixelRatio || 1;
-    const W = canvas.offsetWidth, H = canvas.offsetHeight;
-    canvas.width = W * dpr; canvas.height = H * dpr; ctx.scale(dpr, dpr);
-    const { months, actual, improved } = data, n = months.length, padL = 50, padR = 24, padT = 32, padB = 56;
-    const gW = W - padL - padR, gH = H - padT - padB;
-    const xOf = i => padL + (i / (n - 1)) * gW, yOf = v => padT + (1 - v / 100) * gH;
-    ctx.strokeStyle = 'rgba(0,0,0,0.05)'; ctx.lineWidth = 0.5;
-    [0, 25, 50, 75, 100].forEach(v => { ctx.beginPath(); ctx.moveTo(padL, yOf(v)); ctx.lineTo(W - padR, yOf(v)); ctx.stroke(); });
-    const labelEvery = W / n > 55 ? 1 : 2;
-    ctx.fillStyle = '#64748b'; ctx.font = '13px Outfit'; ctx.textAlign = 'center';
-    months.forEach((m, i) => i % labelEvery === 0 && ctx.fillText(m, xOf(i), H - 18));
-    ctx.save(); ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(139, 92, 246, 0.4)'; ctx.lineWidth = 2;
-    ctx.beginPath(); improved.forEach((v, i) => i === 0 ? ctx.moveTo(xOf(i), yOf(v)) : ctx.lineTo(xOf(i), yOf(v))); ctx.stroke(); ctx.restore();
-    const grad = ctx.createLinearGradient(0, padT, 0, H - padB); grad.addColorStop(0, 'rgba(59, 130, 246, 0.2)'); grad.addColorStop(1, 'rgba(59, 130, 246, 0)');
-    ctx.beginPath(); actual.forEach((v, i) => i === 0 ? ctx.moveTo(xOf(i), yOf(v)) : ctx.lineTo(xOf(i), yOf(v))); ctx.lineTo(xOf(n - 1), H - padB); ctx.lineTo(xOf(0), H - padB); ctx.fillStyle = grad; ctx.fill();
-    ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
-    ctx.beginPath(); actual.forEach((v, i) => i === 0 ? ctx.moveTo(xOf(i), yOf(v)) : ctx.lineTo(xOf(i), yOf(v))); ctx.stroke();
-  }, [data]);
-  return <div className="pulse-canvas-wrap"><canvas ref={canvasRef} style={{ width: '100%', height: '100%' }} /></div>;
-}
-
-function RadarChart({ vals }) {
-  const cx = 150, cy = 150, r = 110;
-  const pts = radarPoints(vals, cx, cy, r);
-  const polyStr = pts.map(p => `${p.x},${p.y}`).join(' ');
+// --- SVG Gauge ------------------------------------------------
+function CircleGauge({ value, color }) {
+  const r = 54, cx = 64, cy = 64;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (value / 100) * circ;
   return (
-    <svg width="300" height="300" viewBox="0 0 300 300">
-      {[0.25, 0.5, 0.75, 1].map(f => {
-        const rings = pts.map((_, i) => {
-          const a = (Math.PI * 2 * i) / pts.length - Math.PI / 2;
-          return `${cx + r * f * Math.cos(a)},${cy + r * f * Math.sin(a)}`;
-        }).join(' ');
-        return <polygon key={f} points={rings} fill="none" stroke="#f1f5f9" strokeWidth="1" />;
-      })}
-      {pts.map((p, i) => <line key={i} x1={cx} y1={cy} x2={cx + r * Math.cos((Math.PI * 2 * i) / pts.length - Math.PI / 2)} y2={cy + r * Math.sin((Math.PI * 2 * i) / pts.length - Math.PI / 2)} stroke="#f1f5f9" strokeWidth="1" />)}
-      <polygon points={polyStr} fill="rgba(59, 130, 246, 0.1)" stroke="#3b82f6" strokeWidth="2" />
-      {pts.map((p, i) => (
-        <g key={i}>
-          <circle cx={p.x} cy={p.y} r="4" fill="#3b82f6" />
-          <text x={p.lx} y={p.ly + 4} textAnchor="middle" fontSize="11" fill="#64748b" fontWeight="700">{p.label}</text>
-        </g>
-      ))}
-    </svg>
-  );
-}
-
-function GrowthBars({ stats }) {
-  if (!stats) return <div className="empty-state">No data for breakdown</div>;
-  const bars = [
-    { label: "Viral Growth", val: Math.min(100, (stats.engagement * 0.9)), color: "var(--accent)" },
-    { label: "Community DNA", val: stats.size_score, color: "var(--violet)" },
-    { label: "Retention Cap", val: stats.health, color: "var(--green)" },
-    { label: "Event Gravity", val: stats.events_score, color: "#f59e0b" },
-  ];
-  return (
-    <div className="growth-bar-container">
-      {bars.map((b, i) => (
-        <div key={i} className="bar-col" data-val={`${Math.round(b.val)}%`} style={{ height: b.val + "%", background: b.color }} />
-      ))}
-      <div style={{ position: 'absolute', bottom: -24, width: '100%', display: 'flex', justifyContent: 'space-around', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>
-        {bars.map(b => <span key={b.label}>{b.label}</span>)}
-      </div>
+    <div className="gauge-wrap">
+      <svg width="128" height="128" viewBox="0 0 128 128">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f5f9" strokeWidth="10" />
+        <circle
+          cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="10"
+          strokeDasharray={circ} strokeDashoffset={offset}
+          strokeLinecap="round" transform={`rotate(-90 ${cx} ${cy})`}
+          style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)" }}
+        />
+        <text x={cx} y={cy + 6} textAnchor="middle" fontSize="28" fontWeight="800" fill={color} fontFamily="Outfit, sans-serif">{value}</text>
+      </svg>
+      <div className="gauge-label">HEALTH SCORE / 100</div>
     </div>
   );
 }
 
-// —— Input Modal (popup from pulled code)
+// --- Input Modal -----------------------------------------------
 const DEFAULT_FORM = {
   members: "", active_members: "", events_per_month: "", community_age_months: "",
-  engagement_rate: 40, location_type: "Urban",
-  domain: "Technology", mode: "Hybrid",
-  Social_Platforms: "WhatsApp Groups",
+  engagement_rate: 40, growth_target: 20, location_type: "Urban",
+  domain: "Technology", mode: "Hybrid", target_demographic: "Youth",
+  motive_category: "Networking", has_formal_leadership: 1,
+  Social_Platforms: "WhatsApp Groups", Physical_Platforms: "Local Meetups",
   "Comm Type": "Tech", "Comm Label": "Dev Hub",
 };
 
-function InputModal({ onSubmit, initial }) {
-  const [f, setF] = useState(initial || DEFAULT_FORM);
+function InputModal({ onSubmit }) {
+  const [f, setF] = useState(DEFAULT_FORM);
   const [submitting, setSubmitting] = useState(false);
+  
+  const handleTypeChange = (val) => {
+    const labels = COMM_LABELS_BY_TYPE[val] || COMM_LABELS_BY_TYPE["Tech"];
+    setF(p => ({ ...p, "Comm Type": val, "Comm Label": labels.includes(p["Comm Label"]) ? p["Comm Label"] : labels[0] || "" }));
+  };
+
   const set = (k, v) => setF(p => ({ ...p, [k]: v }));
 
   const commLabels = COMM_LABELS_BY_TYPE[f["Comm Type"]] || COMM_LABELS_BY_TYPE["Tech"];
-  useEffect(() => {
-    const labels = COMM_LABELS_BY_TYPE[f["Comm Type"]] || [];
-    if (!labels.includes(f["Comm Label"])) {
-      setF(p => ({ ...p, "Comm Label": labels[0] || "" }));
-    }
-  }, [f["Comm Type"]]);
-
-  useEffect(() => {
-    setF(initial || DEFAULT_FORM);
-  }, [initial]);
 
   const handleSubmit = async () => {
     if (!f.members || !f.active_members || !f.events_per_month || !f.community_age_months) {
@@ -314,175 +448,223 @@ function InputModal({ onSubmit, initial }) {
     <div className="modal-overlay">
       <div className="modal-box">
         <div className="modal-header">
-          <div className="modal-badge">CONNECTRUST PRO</div>
+          <div className="modal-badge">✨ CONNECTRUST PRO</div>
           <div className="modal-title">Tell us about your community</div>
           <div className="modal-subtitle">Fill in these details to get your personalised growth report.</div>
         </div>
         <div className="modal-grid">
-          <div className="modal-section-title">Core Metrics</div>
+          <div className="modal-section-title">📊 Core Metrics</div>
           <div className="field"><label>Total Members *</label><input type="number" value={f.members} onChange={e => set("members", e.target.value)} /></div>
           <div className="field"><label>Active Members *</label><input type="number" value={f.active_members} onChange={e => set("active_members", e.target.value)} /></div>
           <div className="field"><label>Events / Mo *</label><input type="number" value={f.events_per_month} onChange={e => set("events_per_month", e.target.value)} /></div>
           <div className="field"><label>Age (mos) *</label><input type="number" value={f.community_age_months} onChange={e => set("community_age_months", e.target.value)} /></div>
-          <div className="field-full">
-            <label>Engagement Rate: {f.engagement_rate}%</label>
-            <div className="range-wrap">
-              <input type="range" min="0" max="100" value={f.engagement_rate} onChange={e => set("engagement_rate", +e.target.value)} />
-              <span className="range-val">{f.engagement_rate}%</span>
-            </div>
-          </div>
+          <div className="field-full"><label>Engagement Rate: {f.engagement_rate}%</label><div className="range-wrap"><input type="range" min="0" max="100" value={f.engagement_rate} onChange={e => set("engagement_rate", +e.target.value)} /><span className="range-val">{f.engagement_rate}%</span></div></div>
 
-          <div className="modal-section-title">Community Profile</div>
+          <div className="modal-section-title">🌍 Community Profile</div>
           <div className="field"><label>Location</label><select value={f.location_type} onChange={e => set("location_type", e.target.value)}>{OPTS.location_type.map(o => <option key={o}>{o}</option>)}</select></div>
           <div className="field"><label>Domain</label><select value={f.domain} onChange={e => set("domain", e.target.value)}>{OPTS.domain.map(o => <option key={o}>{o}</option>)}</select></div>
 
-          <div className="modal-section-title">Type & Label</div>
-          <div className="field"><label>Comm Type</label><select value={f["Comm Type"]} onChange={e => set("Comm Type", e.target.value)}>{COMM_TYPES.map(o => <option key={o}>{o}</option>)}</select></div>
+          <div className="modal-section-title">🏷️ Type & Label</div>
+          <div className="field"><label>Comm Type</label><select value={f["Comm Type"]} onChange={e => handleTypeChange(e.target.value)}>{COMM_TYPES.map(o => <option key={o}>{o}</option>)}</select></div>
           <div className="field"><label>Comm Label</label><select value={f["Comm Label"]} onChange={e => set("Comm Label", e.target.value)}>{commLabels.map(o => <option key={o}>{o}</option>)}</select></div>
         </div>
-        <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>{submitting ? "Analysing..." : "Generate Analysis ->"}</button>
+        <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>{submitting ? "Analysing..." : "Generate Analysis →"}</button>
       </div>
     </div>
   );
 }
 
+// --- Dashboard Content -----------------------------------------
+function GrowthDashboard({ result, form }) {
+  const si = stageInfo(result.stage);
+  const solutions = getSolutions(form["Comm Type"]);
+  const activeRatio = form.members > 0 ? Math.round((+form.active_members / +form.members) * 100) : 0;
+  const focusColor = result.primaryFocus === "Retention" ? "#ef4444" : result.primaryFocus === "Consistency" ? "#f59e0b" : "#10b981";
+
+  const benchmark = result.health > 65 ? `${result.health - 10}%–${result.health - 2}%` : `${result.health + 2}%–${result.health + 15}%`;
+  const comparison = result.health > 65 ? "above average" : "below average";
+
+  return (
+    <div className="dashboard">
+      <div className="stat-strip">
+        {[{ l: "Members", v: (+form.members).toLocaleString(), c: "#4f46e5" }, { l: "Active", v: activeRatio + "%", c: "#10b981" }, { l: "Events/mo", v: form.events_per_month, c: "#7c3aed" }, { l: "Engage", v: form.engagement_rate + "%", c: "#f59e0b" }].map((s, i) => (
+          <div className="stat-pill" key={i}>
+            <div className="stat-pill-lbl">{s.l}</div><div className="stat-pill-val" style={{ color: s.c }}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="hero-grid">
+        <div className="hero-card"><div className="hero-label">Status</div><div className="status-badge" style={{ background: si.bg, color: si.color }}>{si.emoji} {result.stage}</div><div className="status-desc">{si.desc}</div></div>
+        <div className="hero-card" style={{ display: "flex", justifyContent: "center" }}><CircleGauge value={result.health} color={si.color} /></div>
+        <div className="hero-card"><div className="hero-label">Cluster Match</div><div style={{ fontSize: 24, fontWeight: 800, color: "var(--accent)" }}>{result.cluster}</div><div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 12 }}>{result.confidence}% Match Confidence</div></div>
+      </div>
+      <div className="reality-card"><div className="reality-eyebrow">📈 Reality Check</div><div className="reality-text">You are in <strong>'{result.stage}'</strong>. Your score of <strong>{result.health}</strong> is {comparison} for <strong>{form["Comm Type"]}</strong> groups (benchmark: {benchmark}).</div></div>
+      <div className="advice-grid">
+        <div className="advice-card"><div className="advice-eye" style={{ color: focusColor }}>🎯 Primary Focus</div><div className="focus-badge" style={{ background: focusColor + "18", color: focusColor }}>🔍 {result.primaryFocus}</div><p className="advice-reason">Priority based on your current engagement levels.</p></div>
+        <div className="advice-card"><div className="advice-eye" style={{ color: "var(--accent)" }}>💡 Advice</div><div className="advice-text">{result.recommendation}</div><p className="advice-reason">{result.reason}</p></div>
+      </div>
+      <div className="solutions-section"><div className="section-title">🔥 Solutions</div><div className="solutions-grid">{solutions.map((s, i) => (<div className="solution-card" key={i}><div className="sol-accent" /><div className="sol-icon">{s.icon}</div><div className="sol-title">{s.title}</div><div className="sol-desc">{s.desc}</div></div>))}</div></div>
+    </div>
+  );
+}
+
+// --- Volunteer Connect -----------------------------------------
+function VolunteerConnect({ form }) {
+  const strategy = getVolunteerStrategy(form["Comm Type"]);
+  return (
+    <div className="volunteer-info dashboard">
+      <div className="vol-how-card">
+        <div className="hero-label">Approach Analysis</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>{strategy.how}</div>
+        <div className="hero-label">Where to engage volunteers</div>
+        <div className="vol-where-grid">
+          {strategy.where.map(w => <div key={w} className="vol-chip">📍 {w}</div>)}
+        </div>
+        <div className="hero-label" style={{ marginTop: 24 }}>Target Personas</div>
+        <div style={{ fontSize: 15, fontWeight: 500, color: "var(--text-muted)" }}>{strategy.target}</div>
+      </div>
+      <div className="ecosphere-promo">
+        <div style={{ fontSize: 32, fontWeight: 800 }}>Need actual volunteers?</div>
+        <p style={{ fontSize: 18, opacity: 0.9 }}>EcoSphere connects passionate change-makers with communities like yours.</p>
+        <button className="btn-eco" onClick={() => window.open("#ecosphere-link-mock", "_blank")}>Go to EcoSphere ✨</button>
+      </div>
+    </div>
+  );
+}
+
+// --- Consultant Finder -----------------------------------------
+function ConsultantFinder() {
+  return (
+    <div className="consultant-grid dashboard">
+      {CONSULTANTS.map(c => (
+        <div className="con-card" key={c.name}>
+          <div className="con-img">{c.img}</div>
+          <div className="con-name">{c.name}</div>
+          <div className="con-role">{c.role}</div>
+          <div style={{ color: "var(--amber)", fontSize: 14, fontWeight: 800, marginBottom: 8 }}>⭐ {c.rating}</div>
+          <div className="con-bio">{c.bio}</div>
+          <button className="btn-con">Message & Book Call</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// --- Advisor View ---------------------------------------------
+function AdvisorView() {
+  const benefits = [
+    { title: "Intelligent Pattern Recognition", desc: "Our engine analyzes thousands of community data points to identify stagnation patterns before they become critical. Get early warnings and proactive health metrics.", icon: "trend" },
+    { title: "Dynamic Growth Sprints", desc: "Move beyond generic advice. Connectrust Pro suggests high-impact 'Sprints'—specific tasks designed to boost your active member ratio instantly.", icon: "zap" },
+    { title: "Resource Orchestration", desc: "Automatically match your community's current needs with volunteer archetypes and expert consultants who specialize in your specific niche.", icon: "briefcase" },
+  ];
+
+  return (
+    <div className="dashboard">
+      <div className="advisor-hero">
+        <div className="advisor-badge">Premium Strategy Engine</div>
+        <h1 className="advisor-title">Supercharge Your Community Growth</h1>
+        <p className="advisor-subtitle">
+          Connectrust Pro provides deep, data-driven intelligence to transform small groups into thriving, sustainable ecosystems. 
+          Stop guessing and start scaling with precision.
+        </p>
+        <button className="btn-launch" onClick={() => window.open("https://your-vercel-link.app", "_blank")}>
+          Launch Connectrust Pro App →
+        </button>
+      </div>
+
+      <div className="advisor-grid">
+        {benefits.map((b, i) => (
+          <div className="adv-benefit-card" key={i}>
+            <div className="adv-icon-wrap"><Ico n={b.icon} size={24} /></div>
+            <h3 className="adv-benefit-title">{b.title}</h3>
+            <p className="adv-benefit-desc">{b.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="ecosphere-promo" style={{ marginTop: 40, background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}>
+        <h2 style={{ fontSize: 28, fontWeight: 800 }}>Ready to unlock your full potential?</h2>
+        <p style={{ opacity: 0.9 }}>Join 500+ communities already using our high-performance engine to scale.</p>
+        <button className="btn-eco" style={{ color: '#4f46e5' }} onClick={() => window.open("#", "_blank")}>
+          Get Started Now
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// --- App -------------------------------------------------------
+const STORAGE_KEY = "ct_community_form";
+const RESULT_KEY = "ct_community_result";
+
 function AppContent() {
   const { getToken } = useAuth();
-  const [form, setForm] = useState(DEFAULT_FORM);
-  const [result, setResult] = useState(null), [pulseData, setPulseData] = useState(null), [analyzing, setAnalyzing] = useState(false);
-  const [view, setView] = useState("analytics"), [activeTab, setActiveTab] = useState("performance");
-  const [messages, setMessages] = useState([{ role: "bot", text: "I'm your AI strategist. Let's analyze your growth vectors." }]);
-  const [chatInput, setChatInput] = useState(""), [chatLoading, setChatLoading] = useState(false);
-  const chatEndRef = useRef(null);
-  const [showModal, setShowModal] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("growth");
+  const [form, setForm] = useState(null);
+  const [result, setResult] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const handleAnalyze = async (overrideForm) => {
-    const f = overrideForm || form;
+  useEffect(() => {
+    const savedForm = localStorage.getItem(STORAGE_KEY), savedResult = localStorage.getItem(RESULT_KEY);
+    if (savedForm && savedResult) { setForm(JSON.parse(savedForm)); setResult(JSON.parse(savedResult)); } else { setShowModal(true); }
+  }, []);
+
+  const handleSubmit = async (f) => {
     setAnalyzing(true);
-    const payload = {
-      size: +f.members,
-      active_users: +f.active_members,
-      events: +f.events_per_month,
-      engagement: +f.engagement_rate,
-      age: +f.community_age_months,
-      location: f.location_type,
-    };
     try {
       const token = await getToken();
-      const res = await fetch("http://localhost:8000/api/analyze", {
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await fetch("/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify(payload),
+        headers,
+        body: JSON.stringify({ ...f, has_formal_leadership: +f.has_formal_leadership })
       });
-      if (!res.ok) throw new Error("Analyze request failed");
       const data = await res.json();
-      const resultData = data.result || data;
-      setResult(resultData);
-      setPulseData(buildPulseData(payload, resultData));
+      const r = data.result || data;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(f)); localStorage.setItem(RESULT_KEY, JSON.stringify(r));
+      setForm(f); setResult(r);
     } catch {
-      const fallback = analyze(payload);
-      setResult(fallback);
-      setPulseData(buildPulseData(payload, fallback));
+      // Very simple fallback
+      const r = { stage: "Stable", cluster: "Balanced Core", confidence: 80, health: 68, primaryFocus: "Scaling", recommendation: "Launch referral drive", reason: "Growth potential detected" };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(f)); localStorage.setItem(RESULT_KEY, JSON.stringify(r));
+      setForm(f); setResult(r);
     }
-    setAnalyzing(false);
+    setAnalyzing(false); setShowModal(false);
   };
-
-  const handleModalSubmit = async (f) => {
-    setForm(f);
-    setShowModal(false);
-    await handleAnalyze(f);
-  };
-
-  const handleChat = async () => {
-    if (!chatInput.trim() || chatLoading) return;
-    const msg = chatInput; setChatInput(""); setMessages(p => [...p, { role: "user", text: msg }]);
-    setChatLoading(true);
-    setTimeout(() => {
-      setMessages(p => [...p, { role: "bot", text: "Based on your community health of " + (result?.health || 0) + "%, I suggest focusing on 'Event Gravity' to bridge the engagement gap." }]);
-      setChatLoading(false);
-    }, 1000);
-  };
-
-  const activeRatio = form.members > 0 && form.active_members > 0 ? Math.round((+form.active_members / +form.members) * 100) : null;
-  const radarVals = result ? { size_score: Math.min(100, Math.round((+form.members / 500) * 100)), activity: activeRatio || 0, events_score: Math.min(100, (+form.events_per_month / 8) * 100), engagement: +form.engagement_rate, health: result.health, confidence: result.confidence } : null;
 
   return (
     <>
       <style>{CSS}</style>
-      {showModal && <InputModal onSubmit={handleModalSubmit} initial={form} />}
+      {showModal && <InputModal onSubmit={handleSubmit} />}
       <div className="shell">
         <header className="topbar">
-          <div className="brand"><div className="brand-icon"><Ico n="star" /></div><div className="brand-name">CONNECTRUST PRO</div></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)' }}>● AI ENGINE ACTIVE</div>
-            <button className="config-btn" onClick={() => setShowModal(true)}>Configure</button>
+          <div className="brand"><div className="brand-icon">*</div><div className="brand-name">CONNECTRUST PRO</div></div>
+          <div className="topbar-right">
+            <div className="live-dot">AI ENGINE ACTIVE</div>
+            {result && <button className="btn-reconfigure" onClick={() => setShowModal(true)}>Config</button>}
             <UserButton afterSignOutUrl="/" />
           </div>
         </header>
 
-        <nav className="main-nav">
-          <button className={`nav-btn ${view === 'analytics' ? 'active' : ''}`} onClick={() => setView('analytics')}><Ico n="users" /> Metrics</button>
-          <button className={`nav-btn ${view === 'modeling' ? 'active' : ''}`} onClick={() => setView('modeling')}><Ico n="pulse" /> Visual Insights</button>
-          <button className={`nav-btn ${view === 'strategist' ? 'active' : ''}`} onClick={() => setView('strategist')}><Ico n="bot" /> AI Advisor</button>
-        </nav>
-
-        {view === 'analytics' && (
-          <div className="main">
-            <div className="stat-grid">
-              {[{ l: "Size", v: form.members || "—", c: "var(--accent)", b: Math.min(100, (+form.members / 500) * 100) }, { l: "Active", v: activeRatio ? activeRatio + "%" : "—", c: "var(--green)", b: activeRatio || 0 }, { l: "Engagement", v: form.engagement_rate + "%", c: "var(--violet)", b: +form.engagement_rate }, { l: "Health", v: result ? result.health + "%" : "—", c: result?.stageColor || "var(--text-muted)", b: result?.health || 0 }].map((s, i) => (
-                <div className="stat-card" key={i}>
-                  <div className="stat-label">{s.l}</div><div className="stat-val" style={{ color: s.c }}>{s.v}</div>
-                  <div className="stat-bar"><div className="stat-bar-fill" style={{ width: s.b + "%", background: s.c }} /></div>
-                </div>
-              ))}
-            </div>
-            <div className="card">
-              <div className="card-head">◈ DATA CONFIGURATION</div>
-              <div className="card-body">
-                <div className="input-tabs">
-                  <button className={`tab ${activeTab === 'performance' ? 'active' : ''}`} onClick={() => setActiveTab('performance')}>Performance</button>
-                  <button className={`tab ${activeTab === 'dna' ? 'active' : ''}`} onClick={() => setActiveTab('dna')}>DNA</button>
-                </div>
-                {activeTab === 'performance' ? (
-                  <div className="input-grid">
-                    <div className="field"><label>Total Members</label><input type="number" value={form.members} onChange={e => set("members", e.target.value)} /></div>
-                    <div className="field"><label>Active Users</label><input type="number" value={form.active_members} onChange={e => set("active_members", e.target.value)} /></div>
-                    <div className="field"><label>Events / Mo</label><input type="number" value={form.events_per_month} onChange={e => set("events_per_month", e.target.value)} /></div>
-                    <div className="field"><label>Engage</label><input type="range" value={form.engagement_rate} onChange={e => set("engagement_rate", +e.target.value)} /></div>
-                  </div>
-                ) : (
-                  <div className="input-grid">
-                    <div className="field"><label>Age</label><input type="number" value={form.community_age_months} onChange={e => set("community_age_months", e.target.value)} /></div>
-                    <div className="field"><label>Location</label><select value={form.location_type} onChange={e => set("location_type", e.target.value)}><option>Urban</option><option>Rural</option></select></div>
-                    <div className="field"><label>Platform</label><select value={form.Social_Platforms} onChange={e => set("Social_Platforms", e.target.value)}><option>WhatsApp</option><option>Discord</option></select></div>
-                  </div>
-                )}
-                <button className="btn-analyze" onClick={handleAnalyze} style={{ width: '100%' }}>{analyzing ? "SIMULATING..." : "GENERATE GROWTH MODEL"}</button>
-              </div>
-            </div>
-            {result && (
-              <div className="card">
-                <div className="card-head">◈ STRATEGY SUMMARY</div>
-                <div className="card-body"><div className="rec-box"><div className="rec-tag" style={{ background: result.stageColor + '20', color: result.stageColor }}>{result.stage}</div><div style={{ fontWeight: 800, fontSize: 20, marginBottom: 12 }}>{result.recommendation}</div><p style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>{result.reason}</p></div></div>
-              </div>
-            )}
-          </div>
+        {result && form && (
+          <nav className="main-tabs">
+            <button className={`tab-btn ${activeTab === 'growth' ? 'active' : ''}`} onClick={() => setActiveTab('growth')}><Ico n="trend" /> Growth Analysis</button>
+            <button className={`tab-btn ${activeTab === 'advisor' ? 'active' : ''}`} onClick={() => setActiveTab('advisor')}><Ico n="info" /> Advisor</button>
+            <button className={`tab-btn ${activeTab === 'volunteer' ? 'active' : ''}`} onClick={() => setActiveTab('volunteer')}><Ico n="user-plus" /> Volunteer Connect</button>
+            <button className={`tab-btn ${activeTab === 'consultant' ? 'active' : ''}`} onClick={() => setActiveTab('consultant')}><Ico n="briefcase" /> Hire Consultant</button>
+          </nav>
         )}
 
-        {view === 'modeling' && (
-          <div className="viz-grid">
-            <div className="card large-viz"><div className="card-head">◈ 12-MONTH TRAJECTORY SIMULATION (PREDICTIVE)</div><div className="card-body">{pulseData ? <PulseTimeline data={pulseData} /> : <div className="empty-state">Run analysis to see simulation</div>}</div></div>
-            <div className="card" style={{ height: 420 }}><div className="card-head">◈ GROWTH SENSITIVITY FACTORS</div><div className="card-body"><GrowthBars stats={radarVals} /></div></div>
-            <div className="card" style={{ height: 420 }}><div className="card-head">◈ MULTI-DIMENSIONAL COMMUNITY RADAR</div><div className="card-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{radarVals ? <RadarChart vals={radarVals} /> : <div className="empty-state">Radar offline</div>}</div></div>
-          </div>
-        )}
-
-        {view === 'strategist' && (
-          <div className="strategist-view">
-            <div className="chat-msgs">{messages.map((m, i) => <div key={i} className={`msg ${m.role}`}><div className="msg-bub">{m.text}</div></div>)}{chatLoading && <div className="msg bot"><div className="msg-bub">...</div></div>}<div ref={chatEndRef} /></div>
-            <div className="chat-inp-row"><input className="chat-inp" style={{ flex: 1, border: 'none', background: '#f1f5f9', padding: '0 24px', borderRadius: 16, fontSize: 16, fontWeight: 500 }} placeholder="Ask your strategist..." value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleChat()} /><button className="btn-send" onClick={handleChat}><Ico n="send" size={20} /></button></div>
-          </div>
+        {analyzing ? <div className="loading-overlay"><div className="spinner" /><span>Running Model...</span></div> : result && form && (
+          <>
+            {activeTab === 'growth' && <GrowthDashboard result={result} form={form} />}
+            {activeTab === 'advisor' && <AdvisorView />}
+            {activeTab === 'volunteer' && <VolunteerConnect form={form} />}
+            {activeTab === 'consultant' && <ConsultantFinder />}
+          </>
         )}
       </div>
     </>
@@ -491,9 +673,9 @@ function AppContent() {
 
 export default function App() {
   return (
-    <div style={{minHeight: "100vh", display: "flex", flexDirection: "column"}}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <SignedOut>
-        <div style={{display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "#f8fafc"}}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "#f8fafc" }}>
           <SignIn />
         </div>
       </SignedOut>
