@@ -1,5 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 
 // ─── Dropdown Options ──────────────────────────────────────────
 const OPTS = {
@@ -261,6 +262,63 @@ const CSS = `
   @keyframes spin { to { transform: rotate(360deg);} }
   @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
   .dashboard { animation: fadeUp 0.5s ease-out; }
+
+  /* ── Chat Interface ────────────────────────────── */
+  .chat-container {
+    background: white; border: 1px solid var(--border); border-radius: 24px;
+    display: flex; flex-direction: column; height: 500px; margin-bottom: 32px;
+    overflow: hidden; box-shadow: 0 10px 30px rgba(79,70,229,0.05);
+  }
+  .chat-header {
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px; background: #f8fafc;
+  }
+  .chat-header-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+  .chat-header-title { font-weight: 800; font-size: 14px; letter-spacing: 0.5px; }
+  
+  .chat-messages {
+    flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px;
+    background: linear-gradient(to bottom, #ffffff, #f8fafc);
+  }
+  .msg { max-width: 80%; padding: 12px 18px; border-radius: 18px; font-size: 14px; line-height: 1.5; font-weight: 500; }
+  .msg-bot { background: #f1f5f9; color: var(--text); align-self: flex-start; border-bottom-left-radius: 4px; line-height: 1.5; }
+  .msg-bot p { margin: 0 0 10px 0; }
+  .msg-bot p:last-child { margin-bottom: 0; }
+  .msg-bot ul, .msg-bot ol { margin: 8px 0; padding-left: 20px; }
+  .msg-bot li { margin-bottom: 4px; }
+  .msg-bot strong { color: var(--primary); font-weight: 700; }
+  .msg-user { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; align-self: flex-end; border-bottom-right-radius: 4px; box-shadow: 0 4px 12px rgba(79,70,229,0.2); }
+  
+  .chat-input-area {
+    padding: 20px 24px; border-top: 1px solid var(--border); display: flex; gap: 12px; background: white;
+  }
+  .chat-input {
+    flex: 1; padding: 12px 20px; border-radius: 999px; border: 2px solid #f1f5f9;
+    background: #f8fafc; font-family: var(--font); font-size: 14px; font-weight: 600;
+    outline: none; transition: all 0.2s;
+  }
+  .chat-input:focus { border-color: var(--accent); background: white; }
+  .btn-send {
+    background: var(--accent); color: white; border: none; width: 42px; height: 42px;
+    border-radius: 50%; cursor: pointer; display: grid; place-items: center;
+    transition: all 0.2s;
+  }
+  .btn-send:hover { transform: scale(1.1); background: var(--accent2); }
+
+  /* ── Updated Consultants (Less Focus) ─────────── */
+  .con-section-title { font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; text-align: center; opacity: 0.7; }
+  .consultant-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .con-card { 
+    background: rgba(255,255,255,0.6); border: 1px solid var(--border); border-radius: 16px; padding: 16px; 
+    text-align: center; transition: all 0.2s; cursor: pointer;
+  }
+  .con-card:hover { background: white; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.04); }
+  .con-img { font-size: 32px; margin-bottom: 12px; opacity: 0.8; }
+  .con-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .con-role { font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 8px; }
+  .con-bio { font-size: 12px; font-weight: 500; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .btn-con { background: #f1f5f9; border: none; padding: 8px 16px; border-radius: 999px; font-weight: 700; font-size: 11px; cursor: pointer; width: 100%; color: var(--text-muted); }
+  .btn-con:hover { background: #e0e7ff; color: var(--accent); }
 `;
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -435,19 +493,86 @@ function VolunteerConnect({ form }) {
 }
 
 // ─── Consultant Finder ─────────────────────────────────────────
-function ConsultantFinder() {
+function ConsultantFinder({ form }) {
+  const [messages, setMessages] = useState([
+    { role: "bot", text: "Hello! I'm your ConnectTrust advisor. How can I help you grow your community today?" }
+  ]);
+  const [input, setInput] = useState("");
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!input.trim()) return;
+
+    const userMsg = { role: "user", text: input };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: input,
+          variables: form || {} // This sends all 16 variables stored in your 'form' state
+        }),
+      });
+
+      const data = await response.json();
+      setMessages(prev => [...prev, { role: "bot", text: data.response }]);
+    } catch (error) {
+      setMessages(prev => [...prev, { role: "bot", text: "Error connecting to AI advisor." }]);
+    }
+  };
+
   return (
-    <div className="consultant-grid dashboard">
-      {CONSULTANTS.map(c => (
-        <div className="con-card" key={c.name}>
-          <div className="con-img">{c.img}</div>
-          <div className="con-name">{c.name}</div>
-          <div className="con-role">{c.role}</div>
-          <div style={{ color: "var(--amber)", fontSize: 14, fontWeight: 800, marginBottom: 8 }}>⭐ {c.rating}</div>
-          <div className="con-bio">{c.bio}</div>
-          <button className="btn-con">Message & Book Call</button>
+    <div className="dashboard">
+      <div className="chat-container">
+        <div className="chat-header">
+          <div className="chat-header-dot" />
+          <div className="chat-header-title">COMMUNITY GROWTH ADVISOR (AI)</div>
         </div>
-      ))}
+        <div className="chat-messages" ref={scrollRef}>
+          {messages.map((m, i) => (
+            <div key={i} className={`msg msg-${m.role}`}>
+              {m.role === "bot" ? (
+                <ReactMarkdown>{m.text}</ReactMarkdown>
+              ) : (
+                m.text
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="chat-input-area">
+          <input
+            className="chat-input"
+            placeholder="Ask about retention, growth, or engagement..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          />
+          <button className="btn-send" onClick={handleSend}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="con-section-title">Or speak with a verified human expert</div>
+      <div className="consultant-grid">
+        {CONSULTANTS.map(c => (
+          <div className="con-card" key={c.name}>
+            <div className="con-img">{c.img}</div>
+            <div className="con-name">{c.name}</div>
+            <div className="con-role">{c.role}</div>
+            <div style={{ color: "var(--amber)", fontSize: 11, fontWeight: 800, marginBottom: 8 }}>⭐ {c.rating}</div>
+            <div className="con-bio">{c.bio}</div>
+            <button className="btn-con">View Profile</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -507,7 +632,7 @@ export default function App() {
           <>
             {activeTab === 'growth' && <GrowthDashboard result={result} form={form} />}
             {activeTab === 'volunteer' && <VolunteerConnect form={form} />}
-            {activeTab === 'consultant' && <ConsultantFinder />}
+            {activeTab === 'consultant' && <ConsultantFinder form={form} />}
           </>
         )}
       </div>

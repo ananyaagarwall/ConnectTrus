@@ -16,3 +16,6 @@ build/
 Thumbs.db
 
 backend/model.pkl
+
+# Backend Environment Variables
+backend/.env

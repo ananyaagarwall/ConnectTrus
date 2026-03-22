@@ -1,5 +1,6 @@
 import os
 from typing import Any, Dict, Optional, List
+from dotenv import load_dotenv
 
 import joblib
 import numpy as np
@@ -7,6 +8,8 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+import google.generativeai as genai
+
 
 # --- Constants & Paths ---
 APP_TITLE = "CONNECTRUST ML API"
@@ -25,6 +28,78 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+load_dotenv()
+
+GENAI_KEY = os.getenv("GEMINI_API_KEY")
+
+if GENAI_KEY:
+    genai.configure(api_key=GENAI_KEY)
+    print(f"Key loaded: {GENAI_KEY[:5]}***")
+else:
+    print("WARNING: GEMINI_API_KEY not found in environment or .env file.")
+
+# --- New Chat Logic ---
+
+@app.post("/api/chat")
+async def chat_with_advisor(payload: Dict[str, Any]):
+    """
+    Expects: 
+    {
+        "message": "How do I get more members?",
+        "variables": { ...all 16 fields from the form... }
+    }
+    """
+    user_message = payload.get("message")
+    vars = payload.get("variables", {})
+
+    if not user_message:
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    # Construct a high-context System Instruction
+    # This "hydrates" the LLM with your 16 temporary variables
+    system_prompt = f"""
+You are the 'ConnectTrust AI Advisor', a world-class community growth consultant. 
+Provide data-driven, actionable advice based on metrics: type {vars.get('Comm Type')}, members {vars.get('members')}.
+Based on the variables you get of the community analyse and provide -
+    Guidelines:
+    1. Be concise, professional, critical and encouraging.
+    2. Reference specific numbers from the data above in your answers.
+    3. Give real life implementable ideas, and execution advices in short and simple words.
+FORMATTING RULES:
+1. Use clean, professional Markdown. 
+2. Use bullet points for lists.
+3. Keep paragraphs short and avoid visual clutter (minimize excessive emojis/icons).
+4. Use **Bold** for emphasis. Do NOT use # or ## headers.
+5. Provide specific, implementable ideas in short, simple words.
+    """
+
+    if not GENAI_KEY:
+        return {"response": "AI Advisor is currently offline. Please add your `GEMINI_API_KEY` to the `backend/.env` file to enable this feature."}
+
+    try:
+        # Using Gemini 1.5 Flash (Free, fast, and high context)
+        model = genai.GenerativeModel(
+            model_name="gemini-flash-latest",
+            system_instruction=system_prompt
+        )
+        
+        # We start a chat session. 
+        # For 'temporary' variables, we recreate this per request 
+        # or you can pass 'history' from the frontend to maintain a long thread.
+        chat = model.start_chat(history=[])
+        response = chat.send_message(user_message)
+        
+        if response.candidates and response.candidates[0].content.parts:
+            return {"response": response.text}
+        else:
+            print(response.prompt_feedback) # Check why it was blocked
+            return {"response": "The AI blocked this response due to safety filters."}        
+    except Exception as e:
+        print(f"Gemini Error: {e}")
+        raise HTTPException(status_code=500, detail="AI Advisor is currently unavailable.")
+
+
 
 # --- Pydantic Schema ---
 # Matches the 16 features from the Colab notebook
