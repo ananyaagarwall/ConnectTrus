@@ -126,6 +126,7 @@ def _heuristic_result(data: Dict[str, Any]) -> Dict[str, Any]:
         "cluster": clusters.get(stage, "General"),
         "confidence": 75,
         "health": health,
+        "primaryFocus": advice["primaryFocus"],
         "recommendation": advice["recommendation"],
         "reason": advice["reason"],
     }
@@ -203,6 +204,7 @@ class ModelHub:
                 "cluster": clusters.get(stage_label, "Moderate Activity"),
                 "confidence": confidence,
                 "health": health_score,
+                "primaryFocus": advice["primaryFocus"],
                 "recommendation": advice["recommendation"],
                 "reason": advice["reason"],
             }
