@@ -16,7 +16,9 @@ import google.generativeai as genai
 # Local DB imports
 from database import get_db, CommunityGrowth
 
-load_dotenv()
+# Use absolute path for .env
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # --- Constants & Paths ---
 APP_TITLE = "CONNECTRUST ML API"
@@ -35,6 +37,22 @@ else:
 
 # --- App Setup ---
 app = FastAPI(title=APP_TITLE)
+
+# Debug middleware to log all errors
+@app.middleware("http")
+async def catch_exceptions_middleware(request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        import traceback
+        import json
+        from fastapi.responses import JSONResponse
+        print(f"CRITICAL ERROR: {str(e)}")
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"detail": str(e), "trace": traceback.format_exc()}
+        )
 
 allowed_origins = [
     origin.strip() for origin in os.getenv(
@@ -242,13 +260,25 @@ async def chat_with_advisor(payload: Dict[str, Any], user_id: str = Depends(get_
         return {"response": "AI Advisor currently offline (Missing API Key)."}
 
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_prompt)
-        chat = model.start_chat()
-        response = chat.send_message(user_message)
-        return {"response": response.text}
+        # Using models that are verified to be available on your key
+        try:
+            model = genai.GenerativeModel("models/gemini-2.0-flash", system_instruction=system_prompt)
+            chat = model.start_chat()
+            response = chat.send_message(user_message)
+        except Exception:
+            # Second attempt with latest-flash version
+            model = genai.GenerativeModel("models/gemini-flash-latest") 
+            chat = model.start_chat()
+            response = chat.send_message(f"{system_prompt}\n\nUser Question: {user_message}")
+        
+        # Check if response was blocked
+        try:
+            return {"response": response.text}
+        except ValueError:
+            return {"response": "I'm sorry, I cannot respond to that message due to safety filters."}
     except Exception as e:
-        print(f"Gemini Error: {e}")
-        raise HTTPException(status_code=500, detail="AI Unavailable.")
+        print(f"Gemini Error after second fallback: {e}")
+        return {"response": f"AI Advisor error (tried 2.0-flash and flash-latest): {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
