@@ -60,12 +60,24 @@ async def chat_with_advisor(payload: Dict[str, Any]):
     # This "hydrates" the LLM with your 16 temporary variables
     system_prompt = f"""
 You are the 'ConnectTrust AI Advisor', a world-class community growth consultant. 
-Provide data-driven, actionable advice based on metrics: type {vars.get('Comm Type')}, members {vars.get('members')}.
-Based on the variables you get of the community analyse and provide -
-    Guidelines:
-    1. Be concise, professional, critical and encouraging.
-    2. Reference specific numbers from the data above in your answers.
-    3. Give real life implementable ideas, and execution advices in short and simple words.
+Provide data-driven, actionable advice for the community **"{vars.get('community_name', 'Unknown')}"**.
+
+CONTEXT:
+- Community Name: {vars.get('community_name', 'No Name')}
+- Description: {vars.get('community_description', 'No description provided')}
+- Type: {vars.get('Comm Type')} ({vars.get('Comm Label')})
+- Growth: {vars.get('members')} members ({vars.get('active_members')} active)
+- Engagement: {vars.get('engagement_rate')}% rate, {vars.get('events_per_month')} events/mo
+
+RESPONSE STRUCTURE (STRICT):
+    1. **Action Points (Top):** Provide 3-4 creative, brief, one-line actionable points first. 
+    2. **Execution Details (Below):** For each point above, provide a 2-4 line explanation of 'Why' and 'How' to implement it using the specific numbers provided.
+
+    GUIDELINES:
+    - Be concise, professional, and critical yet encouraging.
+    - Reference specific numbers (e.g., "Since you have {vars.get('members')} members...").
+    - Use short, simple words. No jargon.
+
 FORMATTING RULES:
 1. Use clean, professional Markdown. 
 2. Use bullet points for lists.
@@ -80,7 +92,7 @@ FORMATTING RULES:
     try:
         # Using Gemini 1.5 Flash (Free, fast, and high context)
         model = genai.GenerativeModel(
-            model_name="gemini-flash-latest",
+            model_name="gemini-2.5-flash",
             system_instruction=system_prompt
         )
         

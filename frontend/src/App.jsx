@@ -247,6 +247,12 @@ const CSS = `
   .btn-con { background: #f1f5f9; border: none; padding: 12px 24px; border-radius: 999px; font-weight: 800; font-size: 13px; cursor: pointer; width: 100%; transition: all 0.2s; }
   .btn-con:hover { background: var(--accent); color: white; }
 
+  /* Personalization Header */
+  .dashboard-personal-header { margin-bottom: 24px; text-align: left; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+  .dash-comm-name { font-size: 32px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+  .dash-comm-link { font-size: 13px; font-weight: 700; color: var(--accent); text-decoration: none; display: block; margin-bottom: 8px; }
+  .dash-comm-desc { font-size: 15px; font-weight: 500; color: var(--text-muted); line-height: 1.5; max-width: 600px; }
+
   /* Stat Strip */
   .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
   @media (max-width: 700px) { .stat-strip { grid-template-columns: 1fr 1fr; } }
@@ -304,6 +310,16 @@ const CSS = `
     transition: all 0.2s;
   }
   .btn-send:hover { transform: scale(1.1); background: var(--accent2); }
+  
+  /* Typing Indicator */
+  .typing { display: flex; gap: 4px; padding: 12px 16px !important; align-items: center; width: fit-content; }
+  .dot { width: 5px; height: 5px; background: #64748b; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
+  .dot:nth-child(2) { animation-delay: 0.2s; }
+  .dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 
+    0%, 80%, 100% { transform: translateY(0); } 
+    40% { transform: translateY(-5px); } 
+  }
 
   /* ── Updated Consultants (Less Focus) ─────────── */
   .con-section-title { font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; text-align: center; opacity: 0.7; }
@@ -373,6 +389,7 @@ function CircleGauge({ value, color }) {
 
 // ─── Input Modal ───────────────────────────────────────────────
 const DEFAULT_FORM = {
+  community_name: "", community_link: "", community_description: "",
   members: "", active_members: "", events_per_month: "", community_age_months: "",
   engagement_rate: 40, growth_target: 20, location_type: "Urban",
   domain: "Technology", mode: "Hybrid", target_demographic: "Youth",
@@ -395,8 +412,8 @@ function InputModal({ onSubmit }) {
   }, [f["Comm Type"]]);
 
   const handleSubmit = async () => {
-    if (!f.members || !f.active_members || !f.events_per_month || !f.community_age_months) {
-      alert("Please fill in all required numeric fields.");
+    if (!f.community_name || !f.members || !f.active_members || !f.events_per_month || !f.community_age_months) {
+      alert("Please fill in all required fields (Name and Numeric metrics).");
       return;
     }
     setSubmitting(true);
@@ -413,6 +430,11 @@ function InputModal({ onSubmit }) {
           <div className="modal-subtitle">Fill in these details to get your personalised growth report.</div>
         </div>
         <div className="modal-grid">
+          <div className="modal-section-title">✨ Community Identity</div>
+          <div className="field-full"><label>Community Name *</label><input type="text" value={f.community_name} onChange={e => set("community_name", e.target.value)} placeholder="e.g. Green Warriors" /></div>
+          <div className="field"><label>Primary Link</label><input type="text" value={f.community_link} onChange={e => set("community_link", e.target.value)} placeholder="Instagram, Slack, etc." /></div>
+          <div className="field"><label>Brief Description</label><input type="text" value={f.community_description} onChange={e => set("community_description", e.target.value)} placeholder="What do you do?" /></div>
+
           <div className="modal-section-title">📊 Core Metrics</div>
           <div className="field"><label>Total Members *</label><input type="number" value={f.members} onChange={e => set("members", e.target.value)} /></div>
           <div className="field"><label>Active Members *</label><input type="number" value={f.active_members} onChange={e => set("active_members", e.target.value)} /></div>
@@ -446,6 +468,12 @@ function GrowthDashboard({ result, form }) {
 
   return (
     <div className="dashboard">
+      <div className="dashboard-personal-header">
+        <h2 className="dash-comm-name">{form.community_name || "Your Community"}</h2>
+        {form.community_link && <a href={form.community_link} target="_blank" rel="noreferrer" className="dash-comm-link">🔗 {form.community_link.replace(/^https?:\/\//, "")}</a>}
+        {form.community_description && <p className="dash-comm-desc">{form.community_description}</p>}
+      </div>
+
       <div className="stat-strip">
         {[{ l: "Members", v: (+form.members).toLocaleString(), c: "#4f46e5" }, { l: "Active", v: activeRatio + "%", c: "#10b981" }, { l: "Events/mo", v: form.events_per_month, c: "#7c3aed" }, { l: "Engage", v: form.engagement_rate + "%", c: "#f59e0b" }].map((s, i) => (
           <div className="stat-pill" key={i}>
@@ -498,6 +526,7 @@ function ConsultantFinder({ form }) {
     { role: "bot", text: "Hello! I'm your ConnectTrust advisor. How can I help you grow your community today?" }
   ]);
   const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -510,6 +539,7 @@ function ConsultantFinder({ form }) {
     const userMsg = { role: "user", text: input };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
+    setIsTyping(true);
 
     try {
       const response = await fetch("/api/chat", {
@@ -525,6 +555,8 @@ function ConsultantFinder({ form }) {
       setMessages(prev => [...prev, { role: "bot", text: data.response }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: "bot", text: "Error connecting to AI advisor." }]);
+    } finally {
+      setIsTyping(false);
     }
   };
 
@@ -545,6 +577,13 @@ function ConsultantFinder({ form }) {
               )}
             </div>
           ))}
+          {isTyping && (
+            <div className="msg msg-bot typing">
+              <div className="dot" />
+              <div className="dot" />
+              <div className="dot" />
+            </div>
+          )}
         </div>
         <div className="chat-input-area">
           <input
